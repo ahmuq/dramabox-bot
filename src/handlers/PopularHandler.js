@@ -33,9 +33,13 @@ export class PopularHandler {
 
       const label = RANK_LABELS[rankType] || "Populer";
       const text = `📊 <b>${label}</b>\n\nPilih drama:`;
-      const kb = Keyboard.dramaList(res.data, "detail");
+      const kb = Keyboard.dramaList(res.data, "detail", [], `p${rankType}`);
+      const opts = { parse_mode: "HTML", reply_markup: kb };
 
-      await ctx.editMessageText(text, { parse_mode: "HTML", reply_markup: kb });
+      await ctx.editMessageText(text, opts).catch(async () => {
+        await ctx.deleteMessage().catch(() => {});
+        await ctx.reply(text, opts);
+      });
     } catch {
       await ctx.editMessageText(Formatter.error(), {
         parse_mode: "HTML",

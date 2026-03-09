@@ -28,9 +28,14 @@ export class VipHandler {
         }
       }
 
-      await ctx.editMessageText("⭐ <b>VIP Collection</b>\n\nPilih kategori:", {
+      const text = "⭐ <b>VIP Collection</b>\n\nPilih kategori:";
+      const opts = {
         parse_mode: "HTML",
         reply_markup: Keyboard.vipColumns(res.data),
+      };
+      await ctx.editMessageText(text, opts).catch(async () => {
+        await ctx.deleteMessage().catch(() => {});
+        await ctx.reply(text, opts);
       });
     } catch {
       await ctx.editMessageText(Formatter.error(), {
@@ -49,9 +54,18 @@ export class VipHandler {
 
     const text = Formatter.dramaListTitle(column.title);
     const extra = [{ text: "🔙 Kembali ke VIP", data: "vip" }];
-    const kb = Keyboard.dramaList(column.bookList, "detail", extra);
+    const kb = Keyboard.dramaList(
+      column.bookList,
+      "detail",
+      extra,
+      `v${colId}`,
+    );
+    const opts = { parse_mode: "HTML", reply_markup: kb };
 
-    await ctx.editMessageText(text, { parse_mode: "HTML", reply_markup: kb });
+    await ctx.editMessageText(text, opts).catch(async () => {
+      await ctx.deleteMessage().catch(() => {});
+      await ctx.reply(text, opts);
+    });
     await ctx.answerCallbackQuery();
   }
 }

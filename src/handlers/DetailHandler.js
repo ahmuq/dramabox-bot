@@ -9,6 +9,7 @@ export class DetailHandler {
   #bookCache;
   #detailCache = new Map();
   #chapterCache = new Map();
+  #sourceCache = new Map();
 
   constructor(api, bookCache) {
     this.#api = api;
@@ -16,7 +17,9 @@ export class DetailHandler {
   }
 
   register(bot) {
-    bot.callbackQuery(/^detail:(.+)$/, (ctx) => this.#showDetail(ctx));
+    bot.callbackQuery(/^detail:([^:]+)(?::(.+))?$/, (ctx) =>
+      this.#showDetail(ctx),
+    );
     bot.callbackQuery(/^episodes:(.+)$/, (ctx) => this.#showEpisodes(ctx, 0));
     bot.callbackQuery(/^ep_page:(.+):(\d+)$/, (ctx) =>
       this.#showEpisodesPage(ctx),
@@ -27,6 +30,8 @@ export class DetailHandler {
 
   async #showDetail(ctx) {
     const bookId = ctx.match[1];
+    const source = ctx.match[2] || this.#sourceCache.get(bookId) || null;
+    if (source) this.#sourceCache.set(bookId, source);
 
     try {
       const [detailRes] = await Promise.all([this.#api.getDetail(bookId)]);
@@ -35,6 +40,8 @@ export class DetailHandler {
 
       const book = this.#bookCache.get(bookId) || { bookName: "Drama", bookId };
       const text = Formatter.dramaDetail(book, detailRes);
+      const backCallback = DetailHandler.#resolveBack(source);
+      const kb = Keyboard.dramaDetail(bookId, backCallback);
 
       const coverUrl =
         book.coverWap || book.coverUrl || book.cover || book.coverImage;
@@ -42,13 +49,13 @@ export class DetailHandler {
         await ctx.replyWithPhoto(coverUrl, {
           caption: text,
           parse_mode: "HTML",
-          reply_markup: Keyboard.dramaDetail(bookId),
+          reply_markup: kb,
         });
         await ctx.deleteMessage().catch(() => {});
       } else {
         await ctx.editMessageText(text, {
           parse_mode: "HTML",
-          reply_markup: Keyboard.dramaDetail(bookId),
+          reply_markup: kb,
         });
       }
     } catch {
@@ -169,5 +176,15 @@ export class DetailHandler {
         },
       );
     }
+  }
+
+  static #resolveBack(source) {
+    if (!source) return null;
+    if (source === "s") return "search";
+    if (source.startsWith("p")) return `popular:${source.slice(1)}`;
+    if (source.startsWith("l")) return `latest:${source.slice(1)}`;
+    if (source.startsWith("d")) return `dubbed:${source.slice(1)}`;
+    if (source.startsWith("v")) return `vip_col:${source.slice(1)}`;
+    return null;
   }
 }

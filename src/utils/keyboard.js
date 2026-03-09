@@ -19,11 +19,14 @@ export class Keyboard {
     return new InlineKeyboard().text("🏠 Menu Utama", "menu");
   }
 
-  static dramaList(books, prefix, extra = []) {
+  static dramaList(books, prefix, extra = [], source = "") {
     const kb = new InlineKeyboard();
     for (const book of books) {
       const label = `🎬 ${book.bookName}`;
-      kb.text(label.slice(0, 60), `${prefix}:${book.bookId}`).row();
+      const cb = source
+        ? `${prefix}:${book.bookId}:${source}`
+        : `${prefix}:${book.bookId}`;
+      kb.text(label.slice(0, 60), cb).row();
     }
     for (const btn of extra) {
       kb.text(btn.text, btn.data).row();
@@ -41,11 +44,16 @@ export class Keyboard {
     return kb;
   }
 
-  static dramaDetail(bookId) {
-    return new InlineKeyboard()
+  static dramaDetail(bookId, backCallback) {
+    const kb = new InlineKeyboard()
       .text("📋 Daftar Episode", `episodes:${bookId}`)
-      .row()
-      .text("🏠 Menu Utama", "menu");
+      .row();
+    if (backCallback) {
+      kb.text("🔙 Kembali", backCallback).text("🏠 Menu", "menu");
+    } else {
+      kb.text("🏠 Menu Utama", "menu");
+    }
+    return kb;
   }
 
   static episodeList(chapters, bookId, page = 0, totalPages = 1) {

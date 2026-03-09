@@ -33,10 +33,11 @@ export class LatestHandler {
       if (page > 1) nav.push({ text: "⬅️ Prev", data: `latest:${page - 1}` });
       if (hasMore) nav.push({ text: "➡️ Next", data: `latest:${page + 1}` });
 
-      const finalKb = Keyboard.dramaList(res.data, "detail", nav);
-      await ctx.editMessageText(text, {
-        parse_mode: "HTML",
-        reply_markup: finalKb,
+      const finalKb = Keyboard.dramaList(res.data, "detail", nav, `l${page}`);
+      const opts = { parse_mode: "HTML", reply_markup: finalKb };
+      await ctx.editMessageText(text, opts).catch(async () => {
+        await ctx.deleteMessage().catch(() => {});
+        await ctx.reply(text, opts);
       });
     } catch {
       await ctx.editMessageText(Formatter.error(), {

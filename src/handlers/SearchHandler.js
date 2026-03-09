@@ -53,7 +53,7 @@ export class SearchHandler {
       }
 
       const text = Formatter.searchResult(keyword, res.data.length);
-      const kb = Keyboard.dramaList(res.data, "detail");
+      const kb = Keyboard.dramaList(res.data, "detail", [], "s");
       await ctx.reply(text, { parse_mode: "HTML", reply_markup: kb });
     } catch {
       await ctx.reply(Formatter.error(), {
