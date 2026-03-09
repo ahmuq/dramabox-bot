@@ -36,10 +36,21 @@ export class DetailHandler {
       const book = this.#bookCache.get(bookId) || { bookName: "Drama", bookId };
       const text = Formatter.dramaDetail(book, detailRes);
 
-      await ctx.editMessageText(text, {
-        parse_mode: "HTML",
-        reply_markup: Keyboard.dramaDetail(bookId),
-      });
+      const coverUrl =
+        book.coverWap || book.coverUrl || book.cover || book.coverImage;
+      if (coverUrl) {
+        await ctx.replyWithPhoto(coverUrl, {
+          caption: text,
+          parse_mode: "HTML",
+          reply_markup: Keyboard.dramaDetail(bookId),
+        });
+        await ctx.deleteMessage().catch(() => {});
+      } else {
+        await ctx.editMessageText(text, {
+          parse_mode: "HTML",
+          reply_markup: Keyboard.dramaDetail(bookId),
+        });
+      }
     } catch {
       await ctx.editMessageText(Formatter.error(), {
         parse_mode: "HTML",
@@ -76,13 +87,17 @@ export class DetailHandler {
       const book = this.#bookCache.get(bookId) || { bookName: "Drama" };
       const text = Formatter.episodeListHeader(book.bookName, page, totalPages);
       const kb = Keyboard.episodeList(pageChapters, bookId, page, totalPages);
+      const opts = { parse_mode: "HTML", reply_markup: kb };
 
-      await ctx.editMessageText(text, { parse_mode: "HTML", reply_markup: kb });
-    } catch {
-      await ctx.editMessageText(Formatter.error(), {
-        parse_mode: "HTML",
-        reply_markup: Keyboard.backToMenu(),
+      await ctx.editMessageText(text, opts).catch(async () => {
+        await ctx.deleteMessage().catch(() => {});
+        await ctx.reply(text, opts);
       });
+    } catch {
+      const opts = { parse_mode: "HTML", reply_markup: Keyboard.backToMenu() };
+      await ctx
+        .editMessageText(Formatter.error(), opts)
+        .catch(() => ctx.reply(Formatter.error(), opts));
     }
   }
 
@@ -93,8 +108,12 @@ export class DetailHandler {
     const qualities = [720, 540, 360];
     const text = `📹 <b>Pilih Kualitas Video</b>\n▶️ Episode ${chapterIndex + 1}`;
     const kb = Keyboard.qualitySelect(bookId, chapterIndex, qualities);
+    const opts = { parse_mode: "HTML", reply_markup: kb };
 
-    await ctx.editMessageText(text, { parse_mode: "HTML", reply_markup: kb });
+    await ctx.editMessageText(text, opts).catch(async () => {
+      await ctx.deleteMessage().catch(() => {});
+      await ctx.reply(text, opts);
+    });
     await ctx.answerCallbackQuery();
   }
 

@@ -68,10 +68,23 @@ export class SearchHandler {
     const book = this.#bookCache.get(bookId);
     if (!book) return ctx.answerCallbackQuery({ text: "Data tidak ditemukan" });
 
-    await ctx.editMessageText(Formatter.dramaCard(book), {
-      parse_mode: "HTML",
-      reply_markup: Keyboard.dramaDetail(bookId),
-    });
+    const text = Formatter.dramaCard(book);
+    const coverUrl =
+      book.coverWap || book.coverUrl || book.cover || book.coverImage;
+
+    if (coverUrl) {
+      await ctx.replyWithPhoto(coverUrl, {
+        caption: text,
+        parse_mode: "HTML",
+        reply_markup: Keyboard.dramaDetail(bookId),
+      });
+      await ctx.deleteMessage().catch(() => {});
+    } else {
+      await ctx.editMessageText(text, {
+        parse_mode: "HTML",
+        reply_markup: Keyboard.dramaDetail(bookId),
+      });
+    }
     await ctx.answerCallbackQuery();
   }
 }

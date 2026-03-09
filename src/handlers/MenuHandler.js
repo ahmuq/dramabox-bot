@@ -14,7 +14,10 @@ export class MenuHandler {
     const opts = { parse_mode: "HTML", reply_markup: Keyboard.mainMenu() };
 
     if (isCallback) {
-      await ctx.editMessageText(text, opts).catch(() => ctx.reply(text, opts));
+      await ctx.editMessageText(text, opts).catch(async () => {
+        await ctx.deleteMessage().catch(() => {});
+        await ctx.reply(text, opts);
+      });
       await ctx.answerCallbackQuery();
     } else {
       await ctx.reply(text, opts);
