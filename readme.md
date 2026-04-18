@@ -43,7 +43,7 @@ dramabox-bot/
 ## Prasyarat
 
 - **Node.js** v18+ (disarankan v20+)
-- **Bagah Apikey** [Bagah API](https://bagahproject.com/)
+- **Bagah Apikey** [Bagah API](https://api.bagahproject.com/)
 - **Bot Token** dari [@BotFather](https://t.me/BotFather)
 - (Opsional) **Docker** untuk menjalankan local Telegram Bot API server
 
