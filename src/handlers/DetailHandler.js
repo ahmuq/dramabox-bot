@@ -134,7 +134,7 @@ export class DetailHandler {
     try {
       let chapters = this.#chapterCache.get(bookId);
       if (!chapters) {
-        const res = await this.#api.getChapters(bookId, false);
+        const res = await this.#api.getChapters(bookId, true);
         if (!res.success) throw new Error();
         chapters = res.data;
         this.#chapterCache.set(bookId, chapters);
