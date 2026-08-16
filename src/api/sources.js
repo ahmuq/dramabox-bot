@@ -97,15 +97,24 @@ export const sources = {
         chapter.cdnList?.find((c) => c.isDefault === 1) ||
         chapter.cdnList?.[0];
       if (!cdn) throw new Error("CDN not found");
-      const videos = (cdn.videoPathList || [])
+      // varian "encrypt.mp4" tidak bisa diputar di Telegram (stream diacak),
+      // jadi hanya varian bersih yang dipakai
+      const all = (cdn.videoPathList || [])
         .filter((v) => v.videoPath && v.quality)
         .map((v) => ({
           quality: String(v.quality),
           url: v.videoPath,
           format: "mp4",
         }));
+      const clean = all.filter((v) => !/encrypt/i.test(v.url));
+      const videos = clean.length ? clean : all;
       if (!videos.length) throw new Error("Video not found");
-      return { title: chapter.chapterName, videos };
+      // subtitle terpisah (.srt); ambil bahasa default (biasanya Indonesia)
+      const subtitle =
+        (chapter.subLanguageVoList || []).find(
+          (s) => s.isDefault === 1 && s.url,
+        )?.url || null;
+      return { title: chapter.chapterName, videos, subtitle };
     },
   },
 

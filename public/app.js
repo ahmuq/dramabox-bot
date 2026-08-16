@@ -298,18 +298,24 @@ $("back-btn").addEventListener("click", () => {
 });
 
 /* ===== Quality sheet ===== */
+function dbg(event) {
+  new Image().src = `/_dbg?e=${encodeURIComponent(event)}`;
+}
+
 function openQualitySheet(ch) {
+  dbg(`click_episode:${state.source}:${ch.index}`);
   $("sheet-ep").textContent = `${state.detail.title} — ${ch.title || "Episode " + ch.index}`;
   const wrap = $("sheet-qualities");
   wrap.innerHTML = "";
 
   const qualities =
-    state.source === "dramabox" ? [1080, 720, 540, 360] : [720, 540];
+    state.source === "dramabox" ? [720, 540, 360] : [720, 540];
   qualities.forEach((q) => {
     const btn = document.createElement("button");
     btn.className = "quality-btn";
     btn.innerHTML = `<span>▶️ Putar Episode ${ch.index}</span><span class="q-label">${q}p</span>`;
     btn.addEventListener("click", () => {
+      dbg(`click_quality:${state.source}:${ch.index}:${q}`);
       closeSheet();
       sendToBot(ch, q);
     });
@@ -327,7 +333,7 @@ function closeSheet() {
 $("sheet-backdrop").addEventListener("click", closeSheet);
 
 /* ===== Send to bot ===== */
-function sendToBot(ch, quality) {
+async function sendToBot(ch, quality) {
   const payload = {
     source: state.detail.source,
     bookId: state.detail.id,
@@ -336,10 +342,20 @@ function sendToBot(ch, quality) {
     title: state.detail.title,
   };
   try {
-    tg.sendData(JSON.stringify(payload));
+    const res = await fetch("/api/request-video", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Init-Data": tg.initData || "",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    dbg(`request_video_ok:${state.source}:ep${ch.index}`);
     tg.close();
-  } catch {
-    showToast("Gagal mengirim ke bot 😢");
+  } catch (e) {
+    dbg(`request_video_fail:${e.message || e}`);
+    showToast("Gagal meminta video: " + (e.message || e));
   }
 }
 

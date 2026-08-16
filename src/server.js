@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { config } from "./config.js";
 import { getSource, sources } from "./api/sources.js";
+import { sendVideo } from "./videoSender.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -29,6 +30,16 @@ function isValidInitData(initData) {
   return computed === hash;
 }
 
+/** Ambil user id dari initData yang sudah tervalidasi. */
+function userIdFromInitData(initData) {
+  const params = new URLSearchParams(initData || "");
+  try {
+    return JSON.parse(params.get("user") || "{}").id || null;
+  } catch {
+    return null;
+  }
+}
+
 function authMiddleware(req, res, next) {
   if (config.dev) return next();
   const initData = req.get("X-Telegram-Init-Data");
@@ -38,7 +49,7 @@ function authMiddleware(req, res, next) {
   next();
 }
 
-export function startServer() {
+export function startServer(bot) {
   const app = express();
 
   // WebView Telegram agresif mencache — paksa selalu ambil versi terbaru
@@ -46,8 +57,18 @@ export function startServer() {
     res.set("Cache-Control", "no-store, must-revalidate");
     next();
   });
+  app.use((req, res, next) => {
+    console.log(`🌐 ${req.method} ${req.originalUrl}`);
+    next();
+  });
   app.use(express.static(path.join(__dirname, "../public")));
   app.use("/api", authMiddleware);
+
+  // pelacak debugging klik dari mini app
+  app.get("/_dbg", (req, res) => {
+    console.log(`🖱️ [miniapp] ${req.query.e}`);
+    res.status(204).end();
+  });
 
   app.get("/api/sources", (req, res) => {
     res.json(
@@ -78,6 +99,28 @@ export function startServer() {
     } catch (err) {
       res.status(500).json({ error: "Gagal memuat daftar drama" });
     }
+  });
+
+  app.use(express.json());
+
+  // jalur utama: mini app minta video dikirim langsung ke chat user
+  app.post("/api/request-video", async (req, res) => {
+    const initData = req.get("X-Telegram-Init-Data");
+    if (!config.dev && !isValidInitData(initData)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const chatId = userIdFromInitData(initData) || config.testChatId;
+    const { source, bookId, episode } = req.body || {};
+    if (!chatId || !source || !bookId || episode === undefined || episode === null) {
+      console.log(
+        `⚠️ request-video ditolak: chatId=${chatId} body=${JSON.stringify(req.body)} initData=${initData ? "ada" : "kosong"}`,
+      );
+      return res.status(400).json({ error: "Data tidak lengkap" });
+    }
+    console.log("📩 request-video:", JSON.stringify(req.body), "| chat:", chatId);
+    // proses di latar belakang agar mini app bisa langsung ditutup
+    sendVideo(bot, chatId, req.body).catch(() => {});
+    res.json({ ok: true });
   });
 
   app.get("/api/:source/detail", async (req, res) => {

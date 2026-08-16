@@ -1,8 +1,18 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { createWriteStream } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
+import { homedir } from "node:os";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
+// ffmpeg utama; build alternatif dengan libass dipakai untuk hardsub
+function ffmpegBin() {
+  if (process.env.FFMPEG_PATH && existsSync(process.env.FFMPEG_PATH))
+    return process.env.FFMPEG_PATH;
+  const withLibass = path.join(homedir(), ".local/bin/ffmpeg-libass");
+  return existsSync(withLibass) ? withLibass : "ffmpeg";
+}
 
 async function fetchText(url) {
   const res = await fetch(url);
@@ -15,9 +25,58 @@ function resolveUrl(baseUrl, seg) {
 }
 
 /**
- * Unduh video HLS (.m3u8) dan remux jadi mp4 dengan ffmpeg (copy codec).
- * Mengembalikan path file mp4 sementara — pemanggil bertanggung jawab menghapus.
+ * Unduh MP4 + file subtitle .srt lalu bakar subtitle ke video (hardsub)
+ * dengan ffmpeg. Mengembalikan path file hasil — pemanggil bertanggung
+ * jawab menghapus.
  */
+export async function burnSubtitleToMp4(mp4Url, srtUrl) {
+  const dir = await mkdtemp(path.join(tmpdir(), "subsync-"));
+  const inMp4 = path.join(dir, "in.mp4");
+  const srt = path.join(dir, "sub.srt");
+  const outMp4 = path.join(dir, "out.mp4");
+
+  try {
+    const [videoRes, srtRes] = await Promise.all([
+      fetch(mp4Url),
+      fetch(srtUrl),
+    ]);
+    if (!videoRes.ok || !srtRes.ok) throw new Error("Gagal mengunduh video/subtitle");
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(inMp4, Buffer.from(await videoRes.arrayBuffer()));
+    await writeFile(srt, Buffer.from(await srtRes.arrayBuffer()));
+
+    // jalankan ffmpeg dari dalam dir agar path filter subtitle sederhana
+    await new Promise((resolve, reject) => {
+      const ffmpeg = spawn(
+        ffmpegBin(),
+        [
+          "-y",
+          "-loglevel", "error",
+          "-i", "in.mp4",
+          "-vf", "subtitles=sub.srt",
+          "-c:v", "libx264",
+          "-preset", "veryfast",
+          "-crf", "23",
+          "-c:a", "copy",
+          "-movflags", "+faststart",
+          "out.mp4",
+        ],
+        { cwd: dir },
+      );
+      ffmpeg.on("close", (code) =>
+        code === 0 ? resolve() : reject(new Error(`ffmpeg exit ${code}`)),
+      );
+      ffmpeg.on("error", reject);
+    });
+
+    await Promise.all([rm(inMp4, { force: true }), rm(srt, { force: true })]);
+    return outMp4;
+  } catch (err) {
+    await rm(dir, { recursive: true, force: true });
+    throw err;
+  }
+}
+
 export async function downloadHlsToMp4(m3u8Url, concurrency = 6) {
   const dir = await mkdtemp(path.join(tmpdir(), "reelshort-"));
   const outPath = path.join(dir, "video.mp4");
