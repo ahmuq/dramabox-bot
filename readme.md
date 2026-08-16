@@ -1,143 +1,141 @@
-# 🎬 DramaBox Telegram Bot
+# 🎬 DramaHub Telegram Bot + Mini App
 
-Telegram bot untuk menonton dan menjelajahi drama dari DramaBox. Dibangun menggunakan [grammY](https://grammy.dev/) dengan arsitektur OOP dan JavaScript ES Modules.
+Telegram bot pencarian drama **DramaBox** & **ReelShort** dengan **Mini App** modern — pencarian dan browse drama dilakukan lewat web app di dalam Telegram, dan saat episode dipilih, bot langsung mengirim videonya ke chat.
+
+Dibangun menggunakan [grammY](https://grammy.dev/) + [Express](https://expressjs.com/), JavaScript ES Modules.
 
 ## Fitur
 
-- 🔥 **Trending** — Drama yang sedang populer
-- 🔍 **Cari Drama** — Pencarian drama berdasarkan kata kunci
-- ⭐ **VIP Collection** — Koleksi drama VIP eksklusif
-- 📺 **Terbaru** — Drama terbaru dengan pagination
-- 🎬 **Sulih Suara** — Drama dengan dubbing Bahasa Indonesia
-- 📊 **Paling Dicari** — Drama yang paling banyak dicari
-- 🆕 **Terbaru Populer** — Drama terbaru yang sedang naik daun
-- 📖 **Detail Drama** — Info lengkap (rating, pemain, jumlah episode)
-- ▶️ **Streaming Video** — Tonton langsung di Telegram dengan pilihan kualitas (720p, 540p, 360p)
+- 📱 **Mini App modern** — dark theme, grid poster, skeleton loading, infinite scroll
+- 🔀 **Dua sumber drama** — tab DramaBox & ReelShort
+- 🔍 **Pencarian realtime** dengan debounce
+- 🔥 **Trending / For You** feed
+- ▶️ **Kirim video ke chat** — klik episode di mini app → bot reply video langsung
+- 🎞️ **Dukungan HLS** — video ReelShort (.m3u8) otomatis diunduh & diremux ke MP4 via ffmpeg
+- 🔐 **API key tetap di server** — mini app tidak pernah mengakses Bagah API langsung, request diverifikasi dengan `initData` Telegram
 
 ## Struktur Proyek
 
 ```
 dramabox-bot/
-├── .env.example
-├── .gitignore
-├── package.json
-├── setup_vps.sh
-└── src/
-    ├── bot.js                 # Entry point
-    ├── config.js              # Konfigurasi environment
-    ├── api/
-    │   └── DramaBoxAPI.js     # Wrapper API DramaBox
-    ├── handlers/
-    │   ├── MenuHandler.js     # /start, /menu
-    │   ├── SearchHandler.js   # Pencarian drama
-    │   ├── VipHandler.js      # Koleksi VIP
-    │   ├── PopularHandler.js  # Drama populer
-    │   ├── LatestHandler.js   # Drama terbaru
-    │   ├── DubbedHandler.js   # Drama sulih suara
-    │   └── DetailHandler.js   # Detail, episode, streaming
-    └── utils/
-        ├── keyboard.js        # Inline keyboard builder
-        └── formatter.js       # HTML message formatter
+├── public/                    # Frontend Mini App
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
+├── src/
+│   ├── bot.js                 # Entry point (bot + web server)
+│   ├── config.js              # Konfigurasi environment
+│   ├── server.js              # Express: static files + API proxy + validasi initData
+│   ├── downloader.js          # Unduh HLS (.m3u8) → remux MP4 via ffmpeg
+│   ├── api/
+│   │   ├── DramaBoxAPI.js     # Wrapper API DramaBox
+│   │   ├── ReelShortAPI.js    # Wrapper API ReelShort
+│   │   └── sources.js         # Registry & normalisasi kedua sumber
+│   └── handlers/
+│       ├── MenuHandler.js     # /start, /menu, menu button
+│       └── VideoHandler.js    # web_app_data → kirim video
+├── setup_vps.sh               # Setup ffmpeg + local Bot API server
+└── .env.example
 ```
 
 ## Prasyarat
 
 - **Node.js** v18+ (disarankan v20+)
-- **Bagah Apikey** [Bagah API](https://api.bagahproject.com/)
+- **ffmpeg** — wajib untuk video ReelShort (HLS → MP4)
+- **Bagah API key** — [api.bagahproject.com](https://api.bagahproject.com/)
 - **Bot Token** dari [@BotFather](https://t.me/BotFather)
-- (Opsional) **Docker** untuk menjalankan local Telegram Bot API server
+- **Domain + HTTPS** untuk hosting Mini App (wajib untuk tombol WebApp)
 
 ## Instalasi
 
-1. **Clone repository**
+1. **Clone & install**
 
    ```bash
    git clone https://github.com/ahmuq/dramabox-bot
    cd dramabox-bot
-   ```
-
-2. **Install dependencies**
-
-   ```bash
    npm install
    ```
 
-3. **Konfigurasi environment**
+2. **Konfigurasi environment**
 
    ```bash
    cp .env.example .env
    ```
 
-   Edit file `.env` dan isi `BOT_TOKEN` dengan token dari BotFather:
-
    ```env
-   BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+   BOT_TOKEN=123456:ABC-DEF...
    TELEGRAM_API_URL=http://localhost:8081
-   DRAMABOX_API_KEY=your_bagah_api_key_here
-   DRAMABOX_API_BASE=https://bagahproject.com/api/dramabox
+   DRAMABOX_API_KEY=your_key
+   REELSHORT_API_KEY=your_key
+   PORT=3000
+   PUBLIC_URL=https://drama.yourdomain.com
+   DEV=0
    ```
 
-4. **Jalankan bot**
+3. **Jalankan**
 
    ```bash
-   # Production
-   npm start
-
-   # Development (auto-reload)
-   npm run dev
+   npm start        # production
+   npm run dev      # development (auto-reload)
    ```
+
+## Deploy Mini App (VPS)
+
+Mini App harus diakses via HTTPS. Contoh dengan reverse proxy nginx:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name drama.yourdomain.com;
+
+    ssl_certificate     /etc/letsencrypt/live/drama.yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/drama.yourdomain.com/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+    }
+}
+```
+
+Setelah HTTPS aktif:
+
+1. Isi `PUBLIC_URL=https://drama.yourdomain.com` di `.env` — bot otomatis set **menu button** dan menambahkan tombol WebApp di `/start`.
+2. (Alternatif) set manual via BotFather: *Bot Settings → Menu Button*, atau *New Inline Button → Web App*.
+
+> Untuk development di browser biasa (tanpa Telegram), set `DEV=1` untuk melewati validasi `initData`. Jangan gunakan di production.
 
 ## Local Telegram Bot API Server
 
-Untuk mengirim file video berukuran besar (>50 MB), diperlukan local Telegram Bot API server. Script `setup_vps.sh` menyediakan setup otomatis menggunakan Docker.
+Upload video >50 MB butuh local Bot API server. `setup_vps.sh` menginstall **ffmpeg** dan menjalankan `aiogram/telegram-bot-api` (Docker) di port **8081**:
 
-### Setup
+```bash
+chmod +x setup_vps.sh
+./setup_vps.sh
+```
 
-1. Dapatkan **API ID** dan **API Hash** dari [my.telegram.org/apps](https://my.telegram.org/apps)
+> Jika tidak memakainya, set `TELEGRAM_API_URL=https://api.telegram.org` (limit 50 MB).
 
-2. Jalankan script setup:
+## Cara Kerja
 
-   ```bash
-   chmod +x setup_vps.sh
-   ./setup_vps.sh
-   ```
-
-   Script akan:
-   - Menginstall Docker (jika belum ada)
-   - Menjalankan container `aiogram/telegram-bot-api` di port **8081**
-   - Mengaktifkan mode `--local` untuk mendukung upload file besar
-
-3. Pastikan `TELEGRAM_API_URL=http://localhost:8081` sudah diset di file `.env`
-
-> **Catatan:** Jika tidak menggunakan local API server, ubah `TELEGRAM_API_URL` menjadi `https://api.telegram.org`. Limit upload file akan terbatas 50 MB.
+1. User buka Mini App (menu button / tombol `/start`).
+2. Mini app memanggil `/api/:source/*` di server yang sama — server memvalidasi `initData` (HMAC bot token), lalu mem-proxy ke Bagah API (API key tidak terekspos).
+3. User memilih episode + kualitas → `Telegram.WebApp.sendData()`.
+4. Bot menerima `web_app_data`:
+   - **DramaBox**: URL MP4 langsung diupload ke Telegram.
+   - **ReelShort**: playlist HLS diunduh per segmen, diremux ke MP4 (ffmpeg, tanpa re-encode), dikirim, lalu file temp dihapus.
 
 ## Perintah Bot
 
-| Perintah | Deskripsi                                       |
-| -------- | ----------------------------------------------- |
-| `/start` | Menampilkan pesan selamat datang dan menu utama |
-| `/menu`  | Menampilkan menu utama                          |
-
-Semua navigasi menggunakan **inline keyboard** — cukup tekan tombol untuk menjelajahi drama, melihat detail, memilih episode, dan streaming video.
-
-## API Endpoints
-
-Bot menggunakan DramaBox API dengan endpoint berikut:
-
-| Method | Endpoint                    | Deskripsi                                                      |
-| ------ | --------------------------- | -------------------------------------------------------------- |
-| `GET`  | `/vip`                      | Koleksi VIP                                                    |
-| `GET`  | `/search?keyword=`          | Pencarian drama                                                |
-| `GET`  | `/popular?rankType=`        | Drama populer (1=Trending, 2=Paling Dicari, 3=Terbaru Populer) |
-| `GET`  | `/latest?page=`             | Drama terbaru                                                  |
-| `GET`  | `/dubbed?page=&pageSize=`   | Drama sulih suara Indonesia                                    |
-| `GET`  | `/detail?bookId=`           | Detail drama                                                   |
-| `GET`  | `/chapters?bookId=&getAll=` | Daftar episode beserta URL video CDN                           |
+| Perintah | Deskripsi                       |
+| -------- | ------------------------------- |
+| `/start` | Pesan selamat datang + tombol Mini App |
+| `/menu`  | Sama dengan `/start`            |
 
 ## Tech Stack
 
-- **[grammY](https://grammy.dev/)** — Framework Telegram Bot
+- **[grammY](https://grammy.dev/)** — framework bot
+- **[Express](https://expressjs.com/)** — web server Mini App
 - **[Axios](https://axios-http.com/)** — HTTP client
-- **[dotenv](https://github.com/motdotla/dotenv)** — Manajemen environment variable
-- **JavaScript ES Modules** — Import/export modern
-- **Docker** — Local Telegram Bot API server
+- **Telegram WebApp API** — frontend mini app
+- **ffmpeg** — remux HLS → MP4

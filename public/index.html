@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Drama Search</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css?v=2" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===== HOME ===== -->
+    <div id="page-home" class="page">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-icon">🎬</span>
+          <span class="brand-text">DramaHub</span>
+        </div>
+        <div class="seg" id="source-seg">
+          <button class="seg-btn active" data-source="dramabox">DramaBox</button>
+          <button class="seg-btn" data-source="reelshort">ReelShort</button>
+          <span class="seg-indicator"></span>
+        </div>
+      </header>
+
+      <div class="searchwrap">
+        <div class="searchbox">
+          <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+          <input id="search-input" type="text" placeholder="Cari drama..." autocomplete="off" />
+          <button id="search-clear" class="clear-btn" hidden>✕</button>
+        </div>
+      </div>
+
+      <div id="chips" class="chips">
+        <button class="chip active" data-mode="browse">🔥 Trending</button>
+        <button class="chip" data-mode="search">🔍 Hasil Pencarian</button>
+      </div>
+
+      <main id="grid" class="grid"></main>
+      <div id="sentinel" class="sentinel"></div>
+      <div id="empty" class="empty" hidden>
+        <div class="empty-icon">🍿</div>
+        <div class="empty-title">Tidak ada hasil</div>
+        <div class="empty-sub">Coba kata kunci lain</div>
+      </div>
+    </div>
+
+    <!-- ===== DETAIL ===== -->
+    <div id="page-detail" class="page" hidden>
+      <header class="topbar">
+        <button id="back-btn" class="back-btn" aria-label="Kembali">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        </button>
+        <div class="topbar-title" id="detail-topbar-title">Detail</div>
+      </header>
+
+      <div class="hero">
+        <img id="detail-cover" class="hero-cover" alt="" />
+        <div class="hero-fallback" id="hero-fallback">🎬</div>
+        <div class="hero-info">
+          <h1 id="detail-title" class="hero-title"></h1>
+          <div id="detail-meta" class="hero-meta"></div>
+          <p id="detail-desc" class="hero-desc"></p>
+        </div>
+      </div>
+
+      <div class="episodes-head">
+        <span class="episodes-title">📺 Episode</span>
+        <span id="ep-count" class="ep-count"></span>
+      </div>
+      <div id="episode-grid" class="episode-grid"></div>
+    </div>
+
+    <!-- ===== QUALITY SHEET ===== -->
+    <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+    <div id="sheet" class="sheet" hidden>
+      <div class="sheet-grab"></div>
+      <div class="sheet-title">Pilih Kualitas</div>
+      <div class="sheet-sub" id="sheet-ep"></div>
+      <div id="sheet-qualities" class="sheet-qualities"></div>
+    </div>
+
+    <!-- toast -->
+    <div id="toast" class="toast" hidden></div>
+  </div>
+
+  <script src="app.js?v=2"></script>
+</body>
+</html>

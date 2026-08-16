@@ -1,26 +1,44 @@
-import { Formatter } from "../utils/formatter.js";
-import { Keyboard } from "../utils/keyboard.js";
+import { config } from "../config.js";
 
 export class MenuHandler {
   register(bot) {
-    bot.command("start", (ctx) => this.#showMenu(ctx, false));
-    bot.command("menu", (ctx) => this.#showMenu(ctx, false));
-    bot.callbackQuery("menu", (ctx) => this.#showMenu(ctx, true));
+    bot.command("start", (ctx) => this.#showMenu(ctx));
+    bot.command("menu", (ctx) => this.#showMenu(ctx));
+
+    // Set menu button (tombol di samping kolom chat) ke Mini App
+    if (config.publicUrl) {
+      bot.api
+        .setChatMenuButton({
+          menu_button: { type: "web_app", text: "🎬 Cari Drama", web_app: { url: config.publicUrl } },
+        })
+        .catch((err) => console.error("Gagal set menu button:", err.message));
+    }
   }
 
-  async #showMenu(ctx, isCallback) {
-    const name = ctx.from?.first_name || "User";
-    const text = Formatter.welcome(name);
-    const opts = { parse_mode: "HTML", reply_markup: Keyboard.mainMenu() };
+  async #showMenu(ctx) {
+    const name = ctx.from?.first_name || "Sob";
+    const text = [
+      `Hai <b>${name}</b> 👋`,
+      "",
+      "Bot pencarian drama <b>DramaBox</b> & <b>ReelShort</b>.",
+      "Semua pencarian sekarang lewat Mini App — lebih cepat & rapi 🎬",
+      "",
+      "👉 Ketuk tombol di bawah atau menu button di samping kolom chat.",
+    ].join("\n");
 
-    if (isCallback) {
-      await ctx.editMessageText(text, opts).catch(async () => {
-        await ctx.deleteMessage().catch(() => {});
-        await ctx.reply(text, opts);
-      });
-      await ctx.answerCallbackQuery();
-    } else {
-      await ctx.reply(text, opts);
-    }
+    const reply_markup = config.publicUrl
+      ? {
+          inline_keyboard: [
+            [
+              {
+                text: "🎬 Buka Mini App",
+                web_app: { url: config.publicUrl },
+              },
+            ],
+          ],
+        }
+      : undefined;
+
+    await ctx.reply(text, { parse_mode: "HTML", reply_markup });
   }
 }

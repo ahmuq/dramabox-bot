@@ -2,6 +2,16 @@
 
 echo "🚀 Setting up Telegram Bot API Server..."
 
+# 0. Install ffmpeg (dipakai untuk remux video HLS ReelShort ke MP4)
+if ! command -v ffmpeg &> /dev/null; then
+    echo "🎬 Installing ffmpeg..."
+    apt-get update && apt-get install -y ffmpeg
+    echo "✅ ffmpeg installed!"
+else
+    echo "✅ ffmpeg already installed."
+fi
+
+
 # 1. Install Docker if not exists
 if ! command -v docker &> /dev/null; then
     echo "📦 Docker not found. Installing..."
