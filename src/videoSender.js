@@ -3,6 +3,25 @@ import { InputFile } from "grammy";
 import { getSource } from "./api/sources.js";
 import { burnSubtitleToMp4, downloadHlsToMp4 } from "./downloader.js";
 
+// message effect (animasi emoji Telegram) — hanya valid di chat privat;
+// kalau ditolak (mis. di grup), ulangi kirim tanpa efek.
+const EFFECTS = {
+  party: "5046509860389126442", // 🎉
+  wave: "5089234812070265877", // 👋
+};
+
+async function sendVideoWithEffect(bot, chatId, inputFile, other) {
+  try {
+    return await bot.api.sendVideo(chatId, inputFile, {
+      ...other,
+      message_effect_id: EFFECTS.party,
+    });
+  } catch (err) {
+    if (!/effect/i.test(err.message || "")) throw err;
+    return await bot.api.sendVideo(chatId, inputFile, other);
+  }
+}
+
 /**
  * Ambil video untuk payload {source, bookId, episode, quality, title, total}
  * lalu kirim ke chatId dengan tombol navigasi episode.
@@ -105,7 +124,7 @@ export async function sendVideo(bot, chatId, payload) {
       inputFile = new InputFile({ url: video.url });
     }
 
-    await bot.api.sendVideo(chatId, inputFile, {
+    await sendVideoWithEffect(bot, chatId, inputFile, {
       caption: `🎬 <b>${bookTitle}</b>\n▶️ Episode ${episode}${
         video.quality ? ` (${video.quality}p)` : ""
       }`,
