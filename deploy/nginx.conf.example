@@ -1,0 +1,21 @@
+# /etc/nginx/sites-available/dramabox-bot
+# Ganti drama.yourdomain.com dengan domain kamu, lalu:
+#   sudo ln -s /etc/nginx/sites-available/dramabox-bot /etc/nginx/sites-enabled/
+#   sudo certbot --nginx -d drama.yourdomain.com
+#   sudo nginx -t && sudo systemctl reload nginx
+
+server {
+    listen 80;
+    server_name drama.yourdomain.com;
+
+    # cukup besar untuk upload video ke Telegram via proxy (tidak diperlukan
+    # sebenarnya karena bot memakai local Bot API server, tapi aman)
+    client_max_body_size 200M;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_http_version 1.1;
+    }
+}

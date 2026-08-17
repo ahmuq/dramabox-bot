@@ -54,15 +54,34 @@ export const sources = {
   dramabox: {
     id: "dramabox",
     label: "DramaBox",
-    // API dramabox tidak mendukung pagination nyata (page diabaikan, rankType
-    // 1 & 2 identik), jadi tiap halaman memakai feed berbeda lalu berhenti.
-    async browse(page = 1) {
+    categories: [
+      { id: "trending", label: "🔥 Trending" },
+      { id: "popular", label: "⭐ Terpopuler" },
+      { id: "latest", label: "🆕 Terbaru" },
+      { id: "dubbed", label: "🎙️ Dub Indo" },
+      { id: "vip", label: "💎 Lainnya" },
+    ],
+    async browse(page = 1, category = "trending") {
+      // API dramabox tidak mendukung pagination nyata (page diabaikan),
+      // tiap kategori adalah feed tunggal.
+      if (page > 1) return [];
       let list = [];
-      if (page === 1) list = (await dramabox.getPopular(1)).data || [];
-      else if (page === 2) list = (await dramabox.getPopular(3)).data || [];
-      else if (page === 3) list = (await dramabox.getDubbed(1)).data || [];
-      else if (page === 4) list = (await dramabox.getLatest(1)).data || [];
-      else return [];
+      if (category === "popular") list = (await dramabox.getPopular(2)).data || [];
+      else if (category === "latest") list = (await dramabox.getLatest(1)).data || [];
+      else if (category === "dubbed") list = (await dramabox.getDubbed(1)).data || [];
+      else if (category === "vip") {
+        const res = await dramabox.getVip();
+        const seen = new Set();
+        list = [];
+        for (const column of res?.data || []) {
+          for (const b of column.bookList || []) {
+            if (!seen.has(b.bookId)) {
+              seen.add(b.bookId);
+              list.push(b);
+            }
+          }
+        }
+      } else list = (await dramabox.getPopular(1)).data || [];
       return list.map(dramaBoxItem);
     },
     async search(keyword, page = 1) {
@@ -121,9 +140,30 @@ export const sources = {
   reelshort: {
     id: "reelshort",
     label: "ReelShort",
-    // Feed homepage punya book_id yang valid di endpoint detail plus cover,
-    // jadi browse langsung memakai data.lists[].books dari homepage (paginated).
-    async browse(page = 1) {
+    // homepage hanya menyediakan section HOT (tab NEW/RANKING tidak bisa
+    // diminta), jadi kategori lain memakai pencarian tema (genre resmi
+    // ReelShort) yang didukung pagination.
+    categories: [
+      { id: "trending", label: "🔥 Trending" },
+      { id: "werewolf", label: "🐺 Werewolf" },
+      { id: "billionaire", label: "💰 Billionaire" },
+      { id: "mafia", label: "🕴️ Mafia" },
+      { id: "romance", label: "💞 Romance" },
+    ],
+    categoryKeywords: {
+      werewolf: "werewolf",
+      billionaire: "billionaire",
+      mafia: "mafia",
+      romance: "romance",
+    },
+    async browse(page = 1, category = "trending") {
+      if (category !== "trending") {
+        const keyword = this.categoryKeywords[category];
+        if (!keyword) return [];
+        return this.search(keyword, page);
+      }
+      // Feed homepage punya book_id yang valid di endpoint detail plus cover,
+      // jadi trending langsung memakai data.lists[].books (paginated).
       const home = await reelshort.getHomepage(page);
       const books = (home.data?.lists || [])
         .flatMap((s) => s.books || [])
@@ -150,7 +190,15 @@ export const sources = {
           totalEpisodes: b.chapterCount,
           tags: b.tag || [],
         }));
-      return Promise.all(items.map((i) => withReelshortCover(i)));
+      // cari cover dari homepage dulu (cepat), sisanya scrape halaman share
+      return Promise.all(
+        items.map(async (i) => {
+          if (i.cover) return i;
+          const withCover = await withReelshortCover(i);
+          if (withCover.cover) return withCover;
+          return { ...i, cover: await reelshort.getCover(i.id) };
+        }),
+      );
     },
     async detail(bookId) {
       const res = await reelshort.getDetail(bookId);

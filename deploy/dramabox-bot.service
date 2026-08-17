@@ -1,0 +1,22 @@
+# /etc/systemd/system/dramabox-bot.service
+# Aktifkan dengan:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now dramabox-bot
+#   journalctl -u dramabox-bot -f   (lihat log)
+
+[Unit]
+Description=DramaHub Telegram Bot + Mini App
+After=network.target docker.service
+
+[Service]
+Type=simple
+# sesuaikan dengan lokasi repo dan user di VPS kamu
+User=root
+WorkingDirectory=/root/dramabox-bot
+ExecStart=/usr/bin/node src/bot.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

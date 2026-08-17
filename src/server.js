@@ -57,23 +57,22 @@ export function startServer(bot) {
     res.set("Cache-Control", "no-store, must-revalidate");
     next();
   });
+  // WebView Telegram agresif mencache — paksa selalu ambil versi terbaru
   app.use((req, res, next) => {
-    console.log(`🌐 ${req.method} ${req.originalUrl}`);
+    res.set("Cache-Control", "no-store, must-revalidate");
     next();
   });
   app.use(express.static(path.join(__dirname, "../public")));
   app.use("/api", authMiddleware);
 
-  // pelacak debugging klik dari mini app
-  app.get("/_dbg", (req, res) => {
-    console.log(`🖱️ [miniapp] ${req.query.e}`);
-    res.status(204).end();
-  });
-
   app.get("/api/sources", (req, res) => {
     res.json(
       Object.values(sources).map((s) => ({ id: s.id, label: s.label })),
     );
+  });
+
+  app.get("/api/:source/categories", (req, res) => {
+    res.json({ categories: getSource(req.params.source).categories || [] });
   });
 
   app.get("/api/:source/search", async (req, res) => {
@@ -94,6 +93,7 @@ export function startServer(bot) {
     try {
       const results = await getSource(req.params.source).browse(
         Number(req.query.page || 1),
+        req.query.category || "trending",
       );
       res.json({ results });
     } catch (err) {

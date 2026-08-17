@@ -9,6 +9,7 @@ if (tg.setBackgroundColor) tg.setBackgroundColor("#0d0f14");
 const state = {
   source: "dramabox",
   mode: "browse",
+  category: "trending",
   keyword: "",
   page: 1,
   loading: false,
@@ -49,24 +50,40 @@ segBtns.forEach((btn) =>
     segBtns.forEach((b) => b.classList.toggle("active", b === btn));
     moveIndicator();
     state.source = btn.dataset.source;
+    state.category = "trending";
     resetList();
+    loadCategories();
     loadList();
   }),
 );
 window.addEventListener("resize", moveIndicator);
 
-/* ===== Chips ===== */
-document.querySelectorAll(".chip").forEach((chip) =>
-  chip.addEventListener("click", () => {
-    if (state.mode === chip.dataset.mode) return;
-    state.mode = chip.dataset.mode;
-    document
-      .querySelectorAll(".chip")
-      .forEach((c) => c.classList.toggle("active", c === chip));
-    resetList();
-    loadList();
-  }),
-);
+/* ===== Category chips ===== */
+async function loadCategories() {
+  const wrap = $("chips");
+  try {
+    const { categories } = await api(`/api/${state.source}/categories`);
+    wrap.innerHTML = "";
+    categories.forEach((cat) => {
+      const chip = document.createElement("button");
+      chip.className = "chip" + (cat.id === state.category ? " active" : "");
+      chip.textContent = cat.label;
+      chip.addEventListener("click", () => {
+        if (state.mode === "browse" && state.category === cat.id) return;
+        state.mode = "browse";
+        state.category = cat.id;
+        wrap
+          .querySelectorAll(".chip")
+          .forEach((c) => c.classList.toggle("active", c === chip));
+        resetList();
+        loadList();
+      });
+      wrap.appendChild(chip);
+    });
+  } catch {
+    /* biarkan chip lama */
+  }
+}
 
 /* ===== Search ===== */
 let searchTimer;
@@ -91,9 +108,17 @@ $("search-clear").addEventListener("click", () => {
 
 function switchMode(mode) {
   state.mode = mode;
-  document
-    .querySelectorAll(".chip")
-    .forEach((c) => c.classList.toggle("active", c.dataset.mode === mode));
+  if (mode === "browse") {
+    document
+      .querySelectorAll("#chips .chip")
+      .forEach((c) =>
+        c.classList.toggle("active", c.textContent.includes("Trending")),
+      );
+  } else {
+    document
+      .querySelectorAll("#chips .chip")
+      .forEach((c) => c.classList.remove("active"));
+  }
   resetList();
   loadList();
 }
@@ -128,7 +153,7 @@ async function loadList() {
     const q =
       state.mode === "search"
         ? `/api/${state.source}/search?keyword=${encodeURIComponent(state.keyword)}&page=${state.page}`
-        : `/api/${state.source}/browse?page=${state.page}`;
+        : `/api/${state.source}/browse?category=${state.category}&page=${state.page}`;
     const { results } = await api(q);
     grid.querySelectorAll(".skel").forEach((s) => s.remove());
     if (state.page === 1 && !results.length) $("empty").hidden = false;
@@ -298,12 +323,7 @@ $("back-btn").addEventListener("click", () => {
 });
 
 /* ===== Quality sheet ===== */
-function dbg(event) {
-  new Image().src = `/_dbg?e=${encodeURIComponent(event)}`;
-}
-
 function openQualitySheet(ch) {
-  dbg(`click_episode:${state.source}:${ch.index}`);
   $("sheet-ep").textContent = `${state.detail.title} — ${ch.title || "Episode " + ch.index}`;
   const wrap = $("sheet-qualities");
   wrap.innerHTML = "";
@@ -315,7 +335,6 @@ function openQualitySheet(ch) {
     btn.className = "quality-btn";
     btn.innerHTML = `<span>▶️ Putar Episode ${ch.index}</span><span class="q-label">${q}p</span>`;
     btn.addEventListener("click", () => {
-      dbg(`click_quality:${state.source}:${ch.index}:${q}`);
       closeSheet();
       sendToBot(ch, q);
     });
@@ -351,10 +370,8 @@ async function sendToBot(ch, quality) {
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("HTTP " + res.status);
-    dbg(`request_video_ok:${state.source}:ep${ch.index}`);
     tg.close();
   } catch (e) {
-    dbg(`request_video_fail:${e.message || e}`);
     showToast("Gagal meminta video: " + (e.message || e));
   }
 }
@@ -371,4 +388,5 @@ function showToast(msg) {
 
 /* ===== Boot ===== */
 requestAnimationFrame(moveIndicator);
+loadCategories();
 loadList();

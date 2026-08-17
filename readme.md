@@ -81,29 +81,57 @@ dramabox-bot/
 
 ## Deploy Mini App (VPS)
 
-Mini App harus diakses via HTTPS. Contoh dengan reverse proxy nginx:
+Langkah lengkap (contoh pakai domain `drama.yourdomain.com` di VPS Ubuntu):
 
-```nginx
-server {
-    listen 443 ssl;
-    server_name drama.yourdomain.com;
+1. **Prasyarat di VPS** — Node.js 20+, ffmpeg, nginx, dan (opsional tapi disarankan) local Bot API server dari `setup_vps.sh`:
 
-    ssl_certificate     /etc/letsencrypt/live/drama.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/drama.yourdomain.com/privkey.pem;
+   ```bash
+   apt update && apt install -y ffmpeg nginx certbot python3-certbot-nginx
+   ./setup_vps.sh   # ffmpeg + docker local Bot API server di port 8081
+   ```
 
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-    }
-}
-```
+   > ffmpeg dari apt Ubuntu **sudah termasuk libass**, jadi fitur hardsub langsung jalan.
 
-Setelah HTTPS aktif:
+2. **Ambil kode & install**:
 
-1. Isi `PUBLIC_URL=https://drama.yourdomain.com` di `.env` — bot otomatis set **menu button** dan menambahkan tombol WebApp di `/start`.
-2. (Alternatif) set manual via BotFather: *Bot Settings → Menu Button*, atau *New Inline Button → Web App*.
+   ```bash
+   git clone https://github.com/ahmuq/dramabox-bot && cd dramabox-bot
+   npm install
+   cp .env.example .env && nano .env
+   ```
 
-> Untuk development di browser biasa (tanpa Telegram), set `DEV=1` untuk melewati validasi `initData`. Jangan gunakan di production.
+   Isi penting di `.env` untuk production:
+
+   ```env
+   BOT_TOKEN=...
+   TELEGRAM_API_URL=http://localhost:8081     # local Bot API server (upload >50MB)
+   DRAMABOX_API_KEY=...
+   REELSHORT_API_KEY=...
+   PORT=3000
+   PUBLIC_URL=https://drama.yourdomain.com    # wajib HTTPS
+   DEV=0                                      # validasi initData AKTIF
+   ```
+
+3. **HTTPS + reverse proxy** — salin `deploy/nginx.conf.example` ke `/etc/nginx/sites-available/dramabox-bot`, sesuaikan domainnya, lalu:
+
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/dramabox-bot /etc/nginx/sites-enabled/
+   sudo certbot --nginx -d drama.yourdomain.com
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+
+4. **Jalankan sebagai service** — salin `deploy/dramabox-bot.service` ke `/etc/systemd/system/`, sesuaikan `WorkingDirectory`/`User`, lalu:
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now dramabox-bot
+   journalctl -u dramabox-bot -f    # pantau log
+   ```
+
+5. **Cek** — buka `https://drama.yourdomain.com` (harus tampil mini app), lalu `/start` di bot; menu button dan tombol WebApp otomatis diarahkan ke `PUBLIC_URL`.
+
+> Tanpa domain? Mini app tetap bisa diuji lewat tunnel (mis. `cloudflared tunnel --url http://localhost:3000`) dan isi `PUBLIC_URL` dengan URL tunnel — tapi tunnel cepat/quick-load (`trycloudflare.com`) tidak stabil untuk jangka panjang.
+
 
 ## Local Telegram Bot API Server
 

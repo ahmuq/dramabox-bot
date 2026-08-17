@@ -105,7 +105,15 @@ html, body {
 }
 
 /* ===== Chips ===== */
-.chips { display: flex; gap: 8px; padding: 10px 16px 4px; }
+.chips {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex-shrink: 0; }
 .chip {
   border: 1px solid var(--border);
   background: var(--bg-soft);

@@ -13,16 +13,6 @@ const bot = new Bot(config.botToken, {
 new MenuHandler().register(bot);
 new VideoHandler(bot).register(bot);
 
-// debug: catat semua pesan yang diterima bot
-bot.on("message", (ctx) => {
-  console.log(
-    "📩 message masuk:",
-    ctx.message.text || `[${Object.keys(ctx.message).join(",")}]`,
-    "| chat:",
-    ctx.chat.id,
-  );
-});
-
 bot.catch((err) => {
   console.error("Bot error:", err.message);
 });
