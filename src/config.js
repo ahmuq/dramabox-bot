@@ -18,5 +18,6 @@ export const config = {
     baseUrl:
       process.env.REELSHORT_API_BASE ||
       "https://api.bagahproject.com/api/reelshort",
+    lang: process.env.REELSHORT_LANG || "id",
   },
 };

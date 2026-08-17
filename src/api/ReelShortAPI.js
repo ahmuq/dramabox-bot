@@ -3,6 +3,7 @@ import { config } from "../config.js";
 
 export class ReelShortAPI {
   #client;
+  #lang;
 
   constructor() {
     this.#client = axios.create({
@@ -10,34 +11,42 @@ export class ReelShortAPI {
       headers: { "x-api-key": config.reelshort.apiKey },
       timeout: 30000,
     });
+    // bot untuk user Indonesia — konten terjemahan id secara default
+    this.#lang = config.reelshort.lang || "id";
   }
 
   async search(keyword, page = 1) {
     const { data } = await this.#client.get("/search", {
-      params: { keyword, page },
+      params: { keyword, page, lang: this.#lang },
     });
     return data;
   }
 
   async getDetail(bookId) {
-    const { data } = await this.#client.get("/detail", { params: { bookId } });
+    const { data } = await this.#client.get("/detail", {
+      params: { bookId, lang: this.#lang },
+    });
     return data;
   }
 
   async getEpisode(bookId, episode) {
     const { data } = await this.#client.get("/episode", {
-      params: { bookId, episode },
+      params: { bookId, episode, lang: this.#lang },
     });
     return data;
   }
 
   async getForYou(page = 1) {
-    const { data } = await this.#client.get("/foryou", { params: { page } });
+    const { data } = await this.#client.get("/foryou", {
+      params: { page, lang: this.#lang },
+    });
     return data;
   }
 
   async getHomepage(page = 1) {
-    const { data } = await this.#client.get("/homepage", { params: { page } });
+    const { data } = await this.#client.get("/homepage", {
+      params: { page, lang: this.#lang },
+    });
     return data;
   }
 

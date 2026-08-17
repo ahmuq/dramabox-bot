@@ -4,13 +4,31 @@ import { getSource } from "./api/sources.js";
 import { burnSubtitleToMp4, downloadHlsToMp4 } from "./downloader.js";
 
 /**
- * Ambil video untuk payload {source, bookId, episode, quality, title}
- * lalu kirim ke chatId. Dipakai endpoint POST /api/request-video dari
- * mini app dan VideoHandler (web_app_data) sebagai cadangan.
+ * Ambil video untuk payload {source, bookId, episode, quality, title, total}
+ * lalu kirim ke chatId dengan tombol navigasi episode.
+ * Dipakai endpoint POST /api/request-video dari mini app dan VideoHandler.
  */
+export function episodeNavKeyboard(source, bookId, episode, quality, total) {
+  const min = source === "dramabox" ? 0 : 1;
+  // dramabox: indeks 0..total-1; reelshort: indeks 1..total
+  const maxIndex = min === 0 ? total - 1 : total;
+  const mk = (label, target) => ({
+    text: label,
+    callback_data: `epnav:${source}:${bookId}:${target}:${quality}:${total}`,
+  });
+  const row = [];
+  if (episode > min) row.push(mk("⏮ Sebelumnya", episode - 1));
+  if (!total || episode < maxIndex)
+    row.push(mk("Episode Berikutnya ⏭", episode + 1));
+  return row.length ? { inline_keyboard: [row] } : undefined;
+}
+
 export async function sendVideo(bot, chatId, payload) {
-  const { source, bookId, episode, quality, title } = payload;
-  const bookTitle = title || "Drama";
+  const { source, bookId, episode, quality, total } = payload;
+  // judul tidak muat di callback_data — diingat per drama untuk navigasi
+  sendVideo.titles ??= new Map();
+  if (payload.title) sendVideo.titles.set(`${source}:${bookId}`, payload.title);
+  const bookTitle = payload.title || sendVideo.titles.get(`${source}:${bookId}`) || "Drama";
 
   let statusMessageId = null;
   try {
@@ -93,6 +111,13 @@ export async function sendVideo(bot, chatId, payload) {
       }`,
       parse_mode: "HTML",
       supports_streaming: true,
+      reply_markup: episodeNavKeyboard(
+        source,
+        bookId,
+        Number(episode),
+        quality,
+        total ? Number(total) : null,
+      ),
     });
 
     await bot.api.deleteMessage(chatId, statusMessageId).catch(() => {});

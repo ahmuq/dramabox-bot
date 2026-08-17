@@ -359,6 +359,7 @@ async function sendToBot(ch, quality) {
     episode: ch.index,
     quality,
     title: state.detail.title,
+    total: state.detail.chapters?.length || null,
   };
   try {
     const res = await fetch("/api/request-video", {
